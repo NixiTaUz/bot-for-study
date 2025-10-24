@@ -3,13 +3,14 @@
 // Homeボタン・APIキー管理・安定版
 // ────────────────────────────────
 
-// === キャッシュ更新チェック（任意） ===
-// ファイル更新時に古いlocalStorageをクリア
+// === キャッシュ更新チェック（任意だが便利） ===
 if (localStorage.getItem('APP_VERSION') !== '2025-10-24') {
   localStorage.clear();
   localStorage.setItem('APP_VERSION', '2025-10-24');
   console.log('キャッシュ更新: v2025-10-24');
+  location.reload();
 }
+
 // === 設定管理 =========================================
 const S = {
   get apiKey() { return localStorage.getItem('OPENAI_KEY') || ''; },
@@ -70,9 +71,8 @@ el('#saveSettings').onclick = ()=>{
   $settings.close();
   alert('保存しました');
 };
-
-// === APIキー管理：保存・削除・確認ボタン追加 ===
-document.addEventListener('DOMContentLoaded', ()=>{
+// === APIキー管理：保存・削除・確認（置き換え版） ===
+function initKeyButtons(){
   const menu = $settings.querySelector('menu');
   if(!menu.querySelector('#btnKeySave')){
     const wrap = document.createElement('div');
@@ -119,7 +119,55 @@ document.addEventListener('DOMContentLoaded', ()=>{
     $apiKey.value = savedKey;
     console.log('🔑 既存のAPIキーを自動適用しました');
   }
-});
+}
+
+// === Home / Tabナビゲーション初期化（置き換え版） ===
+function initNavigation(){
+  const navButtons = document.querySelectorAll('nav.bottom button');
+
+  navButtons.forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tab = btn.dataset.tab;
+
+      // セクション切替
+      ['roadmap','lesson','quiz'].forEach(id=> el('#'+id).hidden = (id !== tab));
+
+      // Homeならロードマップ再生成（進捗を最新に）
+      if(tab === 'roadmap'){
+        const map = await loadCourse();
+        const stage = map.stage1;
+        const prog = P.get();
+        const cards = stage.units.map(u=>{
+          const pu = prog[u.id];
+          const passed = pu?.passed;
+          const badge = pu ? `（${pu.score}/${pu.total}${passed?'✅':''}）` : '';
+          return `
+            <article class="card">
+              <h3>${u.title} <small>${badge}</small></h3>
+              <div class="actions" style="margin-top:8px;">
+                <button data-unit="${u.id}" class="start">学習</button>
+                <button data-unit="${u.id}" class="quiz">小テスト</button>
+              </div>
+            </article>`;
+        }).join('');
+        $roadmap.innerHTML = `
+          <h2>${stage.title}</h2>
+          <progress value="${Object.values(prog).filter(p=>p?.passed).length}" max="${stage.units.length}"></progress>
+          <p>${Object.values(prog).filter(p=>p?.passed).length}/${stage.units.length} 単元完了</p>
+          ${cards}
+        `;
+        $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
+        $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
+      }
+
+      // ページトップへ
+      window.scrollTo({top:0,behavior:'instant'});
+    });
+  });
+}
+
+
+
 
 // === 接続テスト =======================================
 el('#testKey').onclick = async ()=>{
@@ -371,40 +419,8 @@ async function loadQuizFor(uId){
   $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
 })();
 
-// === Home / Tabナビゲーション修正版 ===
-document.addEventListener('DOMContentLoaded', () => {
-  const navButtons = document.querySelectorAll('nav.bottom button');
-  navButtons.forEach(btn=>{
-    btn.addEventListener('click', async ()=>{
-      const tab = btn.dataset.tab;
-      ['roadmap','lesson','quiz'].forEach(id=> el('#'+id).hidden = (id !== tab));
-      if(tab === 'roadmap'){
-        const map = await loadCourse();
-        const stage = map.stage1;
-        const prog = P.get();
-        const cards = stage.units.map(u=>{
-          const pu = prog[u.id];
-          const passed = pu?.passed;
-          const badge = pu ? `（${pu.score}/${pu.total}${passed?'✅':''}）` : '';
-          return `
-            <article class="card">
-              <h3>${u.title} <small>${badge}</small></h3>
-              <div class="actions" style="margin-top:8px;">
-                <button data-unit="${u.id}" class="start">学習</button>
-                <button data-unit="${u.id}" class="quiz">小テスト</button>
-              </div>
-            </article>`;
-        }).join('');
-        $roadmap.innerHTML = `
-          <h2>${stage.title}</h2>
-          <progress value="${Object.values(prog).filter(p=>p?.passed).length}" max="${stage.units.length}"></progress>
-          <p>${Object.values(prog).filter(p=>p?.passed).length}/${stage.units.length} 単元完了</p>
-          ${cards}
-        `;
-        $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
-        $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
-      }
-      window.scrollTo({top:0,behavior:'instant'});
-    });
-  });
+// === DOMロード後に初期化をまとめて実行 ===
+document.addEventListener('DOMContentLoaded', ()=>{
+  initKeyButtons();
+  initNavigation();
 });

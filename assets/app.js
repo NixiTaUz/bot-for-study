@@ -1,5 +1,6 @@
 // ────────────────────────────────
-// Chat GPT高校 — 自動進行付き app.js
+// Chat GPT高校 — AI講義・採点・進捗対応版
+// Homeボタン修正版
 // ────────────────────────────────
 
 // === 設定管理 =========================================
@@ -152,7 +153,7 @@ ${content}
     const ans = await askOpenAI(prompt);
     area.textContent += ans + "\n";
     renderMath();
-    await sleep(1500);
+    await sleep(1200);
   }
 
   area.textContent += "\n✅ 講義終了！「小テストへ →」で確認テストを受けましょう。\n";
@@ -281,7 +282,7 @@ async function loadQuizFor(uId){
   };
 }
 
-// === 起動 ============================================
+// === 起動（ロードマップ生成） =========================
 (async function(){
   const map = await loadCourse();
   const stage = map.stage1;
@@ -311,3 +312,14 @@ async function loadQuizFor(uId){
   $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
   $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
 })();
+
+// === Home / Tabナビゲーション修正 =====================
+document.querySelectorAll('nav.bottom [data-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const tab = btn.dataset.tab;
+    ['roadmap','lesson','quiz'].forEach(id=>{
+      el('#'+id).hidden = (id !== tab);
+    });
+    window.scrollTo({top:0,behavior:'instant'});
+  });
+});

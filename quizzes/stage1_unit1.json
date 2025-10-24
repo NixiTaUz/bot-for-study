@@ -1,7 +1,24 @@
 {
   "questions": [
-    { "type":"mc", "prompt":"y=3x+2 の傾きは？", "choices":["2","3","-3","0"], "answer":1, "explanation":"傾きは x の係数 3" },
-    { "type":"mc", "prompt":"等速直線運動 x(t)=vt+x0 で v は？", "choices":["位置","速度","加速度","時間"], "answer":1, "explanation":"v は速度" },
-    { "type":"text", "prompt":"y=mx+b で b は何を表す？", "answer":"切片", "explanation":"x=0 のときの y 値" }
+    {
+      "type": "mc",
+      "prompt": "一次関数 $y=2x+3$ の傾きは？",
+      "choices": ["1", "2", "3", "4"],
+      "answer": 1,
+      "explanation": "傾きは $x$ の係数、つまり 2。"
+    },
+    {
+      "type": "text",
+      "prompt": "一次関数 $y=mx+b$ における $b$ の意味を答えよ。",
+      "answer": "切片",
+      "explanation": "$x=0$ のときの値（グラフがy軸と交わる点）。"
+    },
+    {
+      "type": "mc",
+      "prompt": "等速直線運動で速度が3[m/s]のとき、傾きの値は？",
+      "choices": ["0", "1", "3", "9"],
+      "answer": 2,
+      "explanation": "傾き＝速度なので3。"
+    }
   ]
 }

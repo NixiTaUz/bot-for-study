@@ -48,11 +48,23 @@ const $roadmap = el('#roadmap'),
       $useKatex = el('#useKatex');
 
 // === KaTeX再描画 ======================================
-function renderMath(){ 
-  if (S.useKatex && window.renderMathInElement)
-    window.renderMathInElement(document.body,{
-      delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]
-    });
+function renderMath(){
+  if (S.useKatex && window.renderMathInElement){
+    // 教材やAI出力領域のみを対象にKaTeX適用
+    const targets = ['#lesson', '#aiArea', '#quiz'];
+    for (const sel of targets){
+      const elTarget = document.querySelector(sel);
+      if (elTarget){
+        window.renderMathInElement(elTarget, {
+          delimiters: [
+            {left:'$$', right:'$$', display:true},
+            {left:'$', right:'$', display:false}
+          ],
+          throwOnError: false
+        });
+      }
+    }
+  }
 }
 
 // === 設定ダイアログ ===================================

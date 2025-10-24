@@ -246,44 +246,51 @@ async function aiGradeCheck(question, userAnswer, correctAnswer){
   }
 }
 
-// === AI講義モード ====================================
+// === AI講義モード（★この関数を置換） ==================
 async function aiLecture(uId){
   const res = await fetch(`lessons/${uId}.json`);
   const data = await res.json();
+
   const steps = [
-    { key:'theory', label:'理論' },
-    { key:'practice', label:'演習' },
+    { key:'theory',      label:'理論' },
+    { key:'practice',    label:'演習' },
     { key:'application', label:'応用' },
-    { key:'reflection', label:'考察' }
+    { key:'reflection',  label:'考察' }
   ];
+
   const area = el('#aiArea');
-  area.textContent = "📘 AI講義を開始します...\n";
+  // 先頭メッセージをHTMLとして挿入
+  area.innerHTML = `<div class="ai-block">📘 AI講義を開始します...</div>`;
 
   for (const step of steps){
-    area.textContent += `\n--- ${step.label} ---\n`;
+    // セクション見出し
+    area.innerHTML += `<div class="ai-block">--- ${step.label} ---</div>`;
+
     const content = data[step.key];
     const prompt = `
 あなたはChat GPT高校のAI教師です。
 次の教材をもとに簡潔な講義を行い、最後に1行の確認質問を出してください。
 教材内容:
 ${content}
-`;
-const ans = await askOpenAI(prompt);
+`.trim();
 
-// 改行を <br> に変換し、LaTeX記号を保持してHTML描画
-const safeAns = ans
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/\n/g, "<br>");
+    const ans = await askOpenAI(prompt);
 
-area.innerHTML += `<div class="ai-block">${safeAns}</div>`;
-renderMath();
-await sleep(1200);
+    // 改行を <br> に変換し、LaTeXはそのまま描画できるようにエスケープのみ
+    const safeAns = ans
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\n/g, "<br>");
+
+    area.innerHTML += `<div class="ai-block">${safeAns}</div>`;
+    renderMath();
+    await sleep(1200);
+  }
+
+  // 講義終了メッセージ
+  area.innerHTML += `<div class="ai-block">✅ 講義終了！「小テストへ →」で確認テストを受けましょう。</div>`;
+  renderMath();
 }
-
-// ✅ 講義終了メッセージもHTMLとして追記
-area.innerHTML += `<div class="ai-block">✅ 講義終了！「小テストへ →」で確認テストを受けましょう。</div>`;
-renderMath();
 
 // === 単元表示 ========================================
 async function openUnit(uId, view='lesson'){
@@ -331,14 +338,19 @@ async function loadLessonFor(uId){
   el('#btnHint').onclick = async ()=>{
     const prompt = '一次関数の傾きと切片の意味を例と質問つきで短く。';
     const out = await askOpenAI(prompt).catch(()=> '（ローカルヒント）y=mx+b …');
+    // ヒントは簡易なのでテキストでもOK
     el('#aiArea').textContent = out;
+    renderMath();
   };
-  el('#btnAnswer').onclick = ()=> el('#aiArea').textContent =
-    '【模範解答】y=mx+b で m が傾き, b が切片。傾きは x が 1 増えると y がどれだけ増えるか。';
+  el('#btnAnswer').onclick = ()=> {
+    el('#aiArea').textContent =
+      '【模範解答】y=mx+b で m が傾き, b が切片。傾きは x が 1 増えると y がどれだけ増えるか。';
+    renderMath();
+  };
   el('#btnLecture').onclick = ()=> aiLecture(uId);
   el('#toQuiz').onclick = ()=> openUnit(uId,'quiz');
 
-  // ← 追加：HOMEに戻る
+  // HOMEに戻る
   el('#toHome').onclick = ()=>{
     ['lesson','quiz'].forEach(id=> el('#'+id).hidden = true);
     el('#roadmap').hidden = false;

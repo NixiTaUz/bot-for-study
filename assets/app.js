@@ -268,14 +268,22 @@ async function aiLecture(uId){
 教材内容:
 ${content}
 `;
-    const ans = await askOpenAI(prompt);
-    area.textContent += ans + "\n";
-    renderMath();
-    await sleep(1200);
-  }
+const ans = await askOpenAI(prompt);
 
-  area.textContent += "\n✅ 講義終了！「小テストへ →」で確認テストを受けましょう。\n";
+// 改行を <br> に変換し、LaTeX記号を保持してHTML描画
+const safeAns = ans
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/\n/g, "<br>");
+
+area.innerHTML += `<div class="ai-block">${safeAns}</div>`;
+renderMath();
+await sleep(1200);
 }
+
+// ✅ 講義終了メッセージもHTMLとして追記
+area.innerHTML += `<div class="ai-block">✅ 講義終了！「小テストへ →」で確認テストを受けましょう。</div>`;
+renderMath();
 
 // === 単元表示 ========================================
 async function openUnit(uId, view='lesson'){

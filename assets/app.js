@@ -27,11 +27,11 @@ el('#saveSettings').onclick = ()=>{
   $settings.close();
   alert('保存しました');
 };
+
 // --- 接続テストボタン ---
 el('#testKey').onclick = async ()=>{
   const key = ($apiKey.value || S.apiKey || '').trim();
   if(!key){ alert('APIキーを入力してください'); return; }
-  // 一時的にキーを使って ping
   const old = S.apiKey; S.apiKey = key;
   try{
     const res = await askOpenAI('1行でOK。こんにちは、と返して。');
@@ -39,14 +39,16 @@ el('#testKey').onclick = async ()=>{
   }catch(e){
     alert('❌ 接続失敗: ' + (e?.message || e));
   }finally{
-    S.apiKey = old; // 元に戻す
+    S.apiKey = old;
   }
 };
+
 // KaTeX再描画
-function renderMath(){ if (S.useKatex && window.renderMathInElement)
-  window.renderMathInElement(document.body,{
-    delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]
-  });
+function renderMath(){ 
+  if (S.useKatex && window.renderMathInElement)
+    window.renderMathInElement(document.body,{
+      delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}]
+    });
 }
 
 // ── 教材ロード ───────────────────────────
@@ -94,41 +96,39 @@ async function loadQuiz(){
       </article>`
   ).join('') + `<button id="grade">採点</button><pre id="result"></pre>`;
 
-// 採点ボタン（AIフォールバック対応）
-el('#grade').onclick = async ()=>{
-  let score = 0, exp = [];
+  // 採点ボタン（AIフォールバック対応）
+  el('#grade').onclick = async ()=>{
+    const norm = (s)=>(''+s).trim().normalize('NFKC').replace(/\s+/g,'');
+    let score = 0, exp = [];
 
-  for (let i = 0; i < questions.length; i++) {
-    const q = questions[i];
-    let ok = false;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      let ok = false;
 
-    if (q.type === 'mc') {
-      const v = [...document.querySelectorAll(`input[name=q${i}]`)]
-        .find(x => x.checked)?.value;
-      ok = (Number(v) === q.answer);
-
-      // ← 不正解ならAIで再チェック（選択肢の意味的正誤）
-      if (!ok && S.apiKey) {
-        ok = await aiGradeCheck(q.prompt, String(v ?? ''), String(q.answer));
+      if (q.type === 'mc') {
+        const v = [...document.querySelectorAll(`input[name=q${i}]`)]
+          .find(x => x.checked)?.value;
+        ok = (Number(v) === q.answer);
+        if (!ok && S.apiKey) {
+          ok = await aiGradeCheck(q.prompt, String(v ?? ''), String(q.answer));
+        }
+      } else { // text
+        const v = el(`#q${i}`).value;
+        const a = q.answer;
+        ok = (v === String(a)) || (norm(v) === norm(a));
+        if (!ok && S.apiKey) {
+          ok = await aiGradeCheck(q.prompt, v, a);
+        }
       }
 
-    } else { // text
-      const v = el(`#q${i}`).value.trim();
-      ok = (v === String(q.answer)); // まずは完全一致
-
-      // ← 不一致ならAIで意味判定
-      if (!ok && S.apiKey) {
-        ok = await aiGradeCheck(q.prompt, v, q.answer);
-      }
+      if (ok) score++;
+      exp.push(`${i+1}. ${ok ? '✅' : '❌'} ${q.explanation || ''}`);
     }
 
-    if (ok) score++;
-    exp.push(`${i+1}. ${ok ? '✅' : '❌'} ${q.explanation || ''}`);
-  }
-
-  el('#result').textContent =
-    `得点: ${score}/${questions.length}\n` + exp.join('\n');
-};
+    el('#result').textContent =
+      `得点: ${score}/${questions.length}\n` + exp.join('\n');
+  };
+}
 
 // ── OpenAI呼び出し（任意/自分用） ──────────────
 async function askOpenAI(userContent){
@@ -149,8 +149,10 @@ async function askOpenAI(userContent){
   if(!r.ok) throw new Error(await r.text());
   const j = await r.json();
   return j.choices?.[0]?.message?.content?.trim() || "(no content)";
-  
-  async function aiGradeCheck(question, userAnswer, correctAnswer){
+}
+
+// ── AI採点関数 ──────────────────────────────
+async function aiGradeCheck(question, userAnswer, correctAnswer){
   const prompt = `
 あなたは採点アシスタントです。
 次の回答が意味として正しいかを判定し、「正しい」「間違い」のどちらかを1語で返してください。
@@ -161,12 +163,11 @@ async function askOpenAI(userContent){
 `;
   try{
     const result = await askOpenAI(prompt);
-    return result.includes('正しい');
+    return /正しい/.test(result);
   }catch(e){
     console.log('AI採点失敗', e);
     return false;
   }
-}
 }
 
 // ── 起動 ───────────────────────────────────

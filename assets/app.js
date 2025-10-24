@@ -313,13 +313,48 @@ async function loadQuizFor(uId){
   $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
 })();
 
-// === Home / Tabナビゲーション修正 =====================
-document.querySelectorAll('nav.bottom [data-tab]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    const tab = btn.dataset.tab;
-    ['roadmap','lesson','quiz'].forEach(id=>{
-      el('#'+id).hidden = (id !== tab);
+// === Home / Tabナビゲーション修正版 ===
+document.addEventListener('DOMContentLoaded', () => {
+  const navButtons = document.querySelectorAll('nav.bottom button');
+
+  navButtons.forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tab = btn.dataset.tab;
+
+      // 各セクションを切り替え
+      ['roadmap','lesson','quiz'].forEach(id=>{
+        el('#'+id).hidden = (id !== tab);
+      });
+
+      // Homeならロードマップを再生成（進捗を最新に）
+      if(tab === 'roadmap'){
+        const map = await loadCourse();
+        const stage = map.stage1;
+        const prog = P.get();
+        const cards = stage.units.map(u=>{
+          const pu = prog[u.id];
+          const passed = pu?.passed;
+          const badge = pu ? `（${pu.score}/${pu.total}${passed?'✅':''}）` : '';
+          return `
+            <article class="card">
+              <h3>${u.title} <small>${badge}</small></h3>
+              <div class="actions" style="margin-top:8px;">
+                <button data-unit="${u.id}" class="start">学習</button>
+                <button data-unit="${u.id}" class="quiz">小テスト</button>
+              </div>
+            </article>`;
+        }).join('');
+        $roadmap.innerHTML = `
+          <h2>${stage.title}</h2>
+          <progress value="${Object.values(prog).filter(p=>p?.passed).length}" max="${stage.units.length}"></progress>
+          <p>${Object.values(prog).filter(p=>p?.passed).length}/${stage.units.length} 単元完了</p>
+          ${cards}
+        `;
+        $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
+        $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
+      }
+
+      window.scrollTo({top:0,behavior:'instant'});
     });
-    window.scrollTo({top:0,behavior:'instant'});
   });
 });

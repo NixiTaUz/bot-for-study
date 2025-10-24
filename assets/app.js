@@ -1,6 +1,6 @@
 // ────────────────────────────────
 // Chat GPT高校 — AI講義・採点・進捗対応版
-// Homeボタン修正版
+// Homeボタン・APIキー管理・安定版
 // ────────────────────────────────
 
 // === 設定管理 =========================================
@@ -54,6 +54,7 @@ el('#btnSettings').onclick = ()=>{
   $settings.showModal();
 };
 el('#closeSettings').onclick = ()=> $settings.close();
+
 el('#saveSettings').onclick = ()=>{
   S.apiKey = ($apiKey.value || '').trim();
   S.useKatex = !!$useKatex.checked;
@@ -62,6 +63,56 @@ el('#saveSettings').onclick = ()=>{
   $settings.close();
   alert('保存しました');
 };
+
+// === APIキー管理：保存・削除・確認ボタン追加 ===
+document.addEventListener('DOMContentLoaded', ()=>{
+  const menu = $settings.querySelector('menu');
+  if(!menu.querySelector('#btnKeySave')){
+    const wrap = document.createElement('div');
+    wrap.className = 'actions';
+    wrap.innerHTML = `
+      <button id="btnKeySave" type="button">💾 APIキー保存</button>
+      <button id="btnKeyDelete" type="button">🗑 削除</button>
+      <button id="btnKeyCheck" type="button">👁 確認</button>
+    `;
+    menu.after(wrap);
+  }
+
+  // 保存
+  el('#btnKeySave').onclick = ()=>{
+    const key = ($apiKey.value || '').trim();
+    if(!key){ alert('APIキーを入力してください'); return; }
+    localStorage.setItem('OPENAI_KEY', key);
+    S.apiKey = key;
+    alert('✅ APIキーを保存しました（この端末のブラウザに記憶されます）');
+  };
+
+  // 削除
+  el('#btnKeyDelete').onclick = ()=>{
+    if(confirm('APIキーを削除しますか？\n（次回起動時に再入力が必要です）')){
+      localStorage.removeItem('OPENAI_KEY');
+      S.apiKey = '';
+      $apiKey.value = '';
+      alert('🗑 削除しました');
+    }
+  };
+
+  // 確認
+  el('#btnKeyCheck').onclick = ()=>{
+    const key = localStorage.getItem('OPENAI_KEY');
+    if(!key){ alert('APIキーは保存されていません'); return; }
+    const shown = key.length > 12 ? key.slice(0,4) + '•••' + key.slice(-4) : '(短縮不可)';
+    alert(`🔑 保存中のキー: ${shown}\n（この端末のブラウザにのみ保存されています）`);
+  };
+
+  // 自動復元
+  const savedKey = localStorage.getItem('OPENAI_KEY');
+  if(savedKey){
+    S.apiKey = savedKey;
+    $apiKey.value = savedKey;
+    console.log('🔑 既存のAPIキーを自動適用しました');
+  }
+});
 
 // === 接続テスト =======================================
 el('#testKey').onclick = async ()=>{
@@ -316,17 +367,10 @@ async function loadQuizFor(uId){
 // === Home / Tabナビゲーション修正版 ===
 document.addEventListener('DOMContentLoaded', () => {
   const navButtons = document.querySelectorAll('nav.bottom button');
-
   navButtons.forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const tab = btn.dataset.tab;
-
-      // 各セクションを切り替え
-      ['roadmap','lesson','quiz'].forEach(id=>{
-        el('#'+id).hidden = (id !== tab);
-      });
-
-      // Homeならロードマップを再生成（進捗を最新に）
+      ['roadmap','lesson','quiz'].forEach(id=> el('#'+id).hidden = (id !== tab));
       if(tab === 'roadmap'){
         const map = await loadCourse();
         const stage = map.stage1;
@@ -353,7 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
         $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
         $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
       }
-
       window.scrollTo({top:0,behavior:'instant'});
     });
   });

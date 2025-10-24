@@ -4,6 +4,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>chat GPT高校 — モバイルMVP</title>
 <link rel="stylesheet" href="assets/style.css">
+<!-- 検索除外（robots.txt と併用推奨） -->
+<meta name="robots" content="noindex,nofollow">
 
 <body>
 <header class="top">
@@ -31,7 +33,7 @@
   <label class="row">
     <input id="useKatex" type="checkbox" checked> KaTeX 数式を使う
   </label>
-    <label class="row">
+  <label class="row">
     <input id="useAiGrading" type="checkbox" checked> AI採点を使う（不正解時のみ問い合わせ）
   </label>
   <menu>
@@ -41,6 +43,7 @@
   </menu>
 </dialog>
 
+<!-- キャッシュが強い場合は ?v=2 のようにバージョンを付けてください -->
 <script type="module" src="assets/app.js"></script>
 
 <!-- KaTeX（CDN） -->

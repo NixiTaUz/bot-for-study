@@ -94,23 +94,41 @@ async function loadQuiz(){
       </article>`
   ).join('') + `<button id="grade">採点</button><pre id="result"></pre>`;
 
-  el('#grade').onclick = ()=>{
-    let score=0, exp=[];
-    questions.forEach((q,i)=>{
-      let ok=false;
-      if(q.type==='mc'){
-        const v = [...document.querySelectorAll(`input[name=q${i}]`)]
-          .find(x=>x.checked)?.value;
-        ok = (Number(v)===q.answer);
-      }else{
-        const v = el(`#q${i}`).value.trim();
-        ok = (v===String(q.answer));
+// 採点ボタン（AIフォールバック対応）
+el('#grade').onclick = async ()=>{
+  let score = 0, exp = [];
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    let ok = false;
+
+    if (q.type === 'mc') {
+      const v = [...document.querySelectorAll(`input[name=q${i}]`)]
+        .find(x => x.checked)?.value;
+      ok = (Number(v) === q.answer);
+
+      // ← 不正解ならAIで再チェック（選択肢の意味的正誤）
+      if (!ok && S.apiKey) {
+        ok = await aiGradeCheck(q.prompt, String(v ?? ''), String(q.answer));
       }
-      if(ok) score++; exp.push(`${i+1}. ${ok?'✅':'❌'} ${q.explanation||''}`);
-    });
-    el('#result').textContent = `得点: ${score}/${questions.length}\n`+exp.join('\n');
-  };
-}
+
+    } else { // text
+      const v = el(`#q${i}`).value.trim();
+      ok = (v === String(q.answer)); // まずは完全一致
+
+      // ← 不一致ならAIで意味判定
+      if (!ok && S.apiKey) {
+        ok = await aiGradeCheck(q.prompt, v, q.answer);
+      }
+    }
+
+    if (ok) score++;
+    exp.push(`${i+1}. ${ok ? '✅' : '❌'} ${q.explanation || ''}`);
+  }
+
+  el('#result').textContent =
+    `得点: ${score}/${questions.length}\n` + exp.join('\n');
+};
 
 // ── OpenAI呼び出し（任意/自分用） ──────────────
 async function askOpenAI(userContent){

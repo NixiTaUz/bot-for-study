@@ -3,6 +3,13 @@
 // Homeボタン・APIキー管理・安定版
 // ────────────────────────────────
 
+// === キャッシュ更新チェック（任意） ===
+// ファイル更新時に古いlocalStorageをクリア
+if (localStorage.getItem('APP_VERSION') !== '2025-10-24') {
+  localStorage.clear();
+  localStorage.setItem('APP_VERSION', '2025-10-24');
+  console.log('キャッシュ更新: v2025-10-24');
+}
 // === 設定管理 =========================================
 const S = {
   get apiKey() { return localStorage.getItem('OPENAI_KEY') || ''; },

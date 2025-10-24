@@ -27,7 +27,21 @@ el('#saveSettings').onclick = ()=>{
   $settings.close();
   alert('保存しました');
 };
-
+// --- 接続テストボタン ---
+el('#testKey').onclick = async ()=>{
+  const key = ($apiKey.value || S.apiKey || '').trim();
+  if(!key){ alert('APIキーを入力してください'); return; }
+  // 一時的にキーを使って ping
+  const old = S.apiKey; S.apiKey = key;
+  try{
+    const res = await askOpenAI('1行でOK。こんにちは、と返して。');
+    alert('✅ 接続OK: ' + (res.slice(0,80)));
+  }catch(e){
+    alert('❌ 接続失敗: ' + (e?.message || e));
+  }finally{
+    S.apiKey = old; // 元に戻す
+  }
+};
 // KaTeX再描画
 function renderMath(){ if (S.useKatex && window.renderMathInElement)
   window.renderMathInElement(document.body,{

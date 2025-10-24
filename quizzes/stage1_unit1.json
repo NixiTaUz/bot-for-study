@@ -1,0 +1,7 @@
+{
+  "questions": [
+    { "type":"mc", "prompt":"y=3x+2 の傾きは？", "choices":["2","3","-3","0"], "answer":1, "explanation":"傾きは x の係数 3" },
+    { "type":"mc", "prompt":"等速直線運動 x(t)=vt+x0 で v は？", "choices":["位置","速度","加速度","時間"], "answer":1, "explanation":"v は速度" },
+    { "type":"text", "prompt":"y=mx+b で b は何を表す？", "answer":"切片", "explanation":"x=0 のときの y 値" }
+  ]
+}

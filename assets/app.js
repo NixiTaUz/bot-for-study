@@ -37,7 +37,8 @@ const P = {
 const el = (sel) => document.querySelector(sel);
 const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
 
-// === DOM参照 ==========================================
+let currentUnit = null;// === DOM参照 ==========================================
+
 const $roadmap = el('#roadmap'),
       $lesson = el('#lesson'),
       $quiz = el('#quiz'),
@@ -388,8 +389,15 @@ async function loadQuizFor(uId){
   };
 }
 
-// === 起動（ロードマップ生成） =========================
-(async function(){
+// === DOMロード後の完全初期化 =========================
+document.addEventListener('DOMContentLoaded', async ()=>{
+  console.log('🚀 Chat GPT高校 起動');
+
+  // 設定まわり
+  initKeyButtons();
+  initNavigation();
+
+  // 初回ロードマップ描画
   const map = await loadCourse();
   const stage = map.stage1;
   const prog = P.get();
@@ -417,10 +425,6 @@ async function loadQuizFor(uId){
 
   $roadmap.querySelectorAll('.start').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'lesson'));
   $roadmap.querySelectorAll('.quiz').forEach(b=> b.onclick=()=>openUnit(b.dataset.unit,'quiz'));
-})();
 
-// === DOMロード後に初期化をまとめて実行 ===
-document.addEventListener('DOMContentLoaded', ()=>{
-  initKeyButtons();
-  initNavigation();
+  console.log('✅ 初期化完了');
 });

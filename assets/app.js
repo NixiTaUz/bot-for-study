@@ -167,9 +167,6 @@ function initNavigation(){
   });
 }
 
-
-
-
 // === 接続テスト =======================================
 el('#testKey').onclick = async ()=>{
   const key = ($apiKey.value || S.apiKey || '').trim();
@@ -337,6 +334,9 @@ async function loadQuizFor(uId){
       <button id="backLesson">← レッスンに戻る</button>
       <button id="nextUnit" hidden>次の単元へ →</button>
     </div>`;
+  // ← これを追加（数式をレンダリング）
+  renderMath();
+  
 
   el('#grade').onclick = async ()=>{
     const norm = (s)=>(''+s).trim().normalize('NFKC').replace(/\s+/g,'');

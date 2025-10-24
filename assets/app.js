@@ -37,8 +37,9 @@ const P = {
 const el = (sel) => document.querySelector(sel);
 const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
 
-let currentUnit = null;// === DOM参照 ==========================================
+let currentUnit = null;
 
+// === DOM参照 ==========================================
 const $roadmap = el('#roadmap'),
       $lesson = el('#lesson'),
       $quiz = el('#quiz'),
@@ -72,6 +73,7 @@ el('#saveSettings').onclick = ()=>{
   $settings.close();
   alert('保存しました');
 };
+
 // === APIキー管理：保存・削除・確認（置き換え版） ===
 function initKeyButtons(){
   const menu = $settings.querySelector('menu');
@@ -295,13 +297,13 @@ async function loadLessonFor(uId){
     <article class="card"><h3>演習</h3><div>${data.practice}</div></article>
     <article class="card"><h3>応用</h3><div>${data.application}</div></article>
     <article class="card"><h3>考察</h3><div>${data.reflection}</div></article>
-  <div class="actions">
-    <button id="btnHint">ヒント（AI任意）</button>
-    <button id="btnAnswer">答えを見る</button>
-    <button id="btnLecture">AI講義を開始</button>
-    <button id="toQuiz">小テストへ →</button>
-    <button id="toHome">🏠 HOMEに戻る</button>
-  </div>div>
+    <div class="actions">
+      <button id="btnHint">ヒント（AI任意）</button>
+      <button id="btnAnswer">答えを見る</button>
+      <button id="btnLecture">AI講義を開始</button>
+      <button id="toQuiz">小テストへ →</button>
+      <button id="toHome">🏠 HOMEに戻る</button>
+    </div>
     <pre id="aiArea" class="ai"></pre>
   `;
   renderMath();
@@ -315,6 +317,13 @@ async function loadLessonFor(uId){
     '【模範解答】y=mx+b で m が傾き, b が切片。傾きは x が 1 増えると y がどれだけ増えるか。';
   el('#btnLecture').onclick = ()=> aiLecture(uId);
   el('#toQuiz').onclick = ()=> openUnit(uId,'quiz');
+
+  // ← 追加：HOMEに戻る
+  el('#toHome').onclick = ()=>{
+    ['lesson','quiz'].forEach(id=> el('#'+id).hidden = true);
+    el('#roadmap').hidden = false;
+    window.scrollTo(0,0);
+  };
 }
 
 // === クイズ読込 ======================================
@@ -335,9 +344,8 @@ async function loadQuizFor(uId){
       <button id="backLesson">← レッスンに戻る</button>
       <button id="nextUnit" hidden>次の単元へ →</button>
     </div>`;
-  // ← これを追加（数式をレンダリング）
+  // 数式をレンダリング
   renderMath();
-  
 
   el('#grade').onclick = async ()=>{
     const norm = (s)=>(''+s).trim().normalize('NFKC').replace(/\s+/g,'');

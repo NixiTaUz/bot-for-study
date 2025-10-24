@@ -1,0 +1,10 @@
+{
+  "stage1": {
+    "title": "ステージ1：高校基礎",
+    "pass_score": 0.7,
+    "units": [
+      { "id": "stage1_unit1", "title": "一次関数と運動" },
+      { "id": "stage1_unit2", "title": "二次関数と等加速度運動" }
+    ]
+  }
+}

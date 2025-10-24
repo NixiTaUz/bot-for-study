@@ -131,6 +131,24 @@ async function askOpenAI(userContent){
   if(!r.ok) throw new Error(await r.text());
   const j = await r.json();
   return j.choices?.[0]?.message?.content?.trim() || "(no content)";
+  
+  async function aiGradeCheck(question, userAnswer, correctAnswer){
+  const prompt = `
+あなたは採点アシスタントです。
+次の回答が意味として正しいかを判定し、「正しい」「間違い」のどちらかを1語で返してください。
+
+質問: ${question}
+正答: ${correctAnswer}
+受験者の回答: ${userAnswer}
+`;
+  try{
+    const result = await askOpenAI(prompt);
+    return result.includes('正しい');
+  }catch(e){
+    console.log('AI採点失敗', e);
+    return false;
+  }
+}
 }
 
 // ── 起動 ───────────────────────────────────

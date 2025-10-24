@@ -295,12 +295,13 @@ async function loadLessonFor(uId){
     <article class="card"><h3>演習</h3><div>${data.practice}</div></article>
     <article class="card"><h3>応用</h3><div>${data.application}</div></article>
     <article class="card"><h3>考察</h3><div>${data.reflection}</div></article>
-    <div class="actions">
-      <button id="btnHint">ヒント（AI任意）</button>
-      <button id="btnAnswer">答えを見る</button>
-      <button id="btnLecture">AI講義を開始</button>
-      <button id="toQuiz">小テストへ →</button>
-    </div>
+  <div class="actions">
+    <button id="btnHint">ヒント（AI任意）</button>
+    <button id="btnAnswer">答えを見る</button>
+    <button id="btnLecture">AI講義を開始</button>
+    <button id="toQuiz">小テストへ →</button>
+    <button id="toHome">🏠 HOMEに戻る</button>
+  </div>div>
     <pre id="aiArea" class="ai"></pre>
   `;
   renderMath();

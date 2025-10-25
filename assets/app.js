@@ -41,11 +41,11 @@ let currentUnit = null;
 
 // === DOM参照 ==========================================
 const $roadmap = el('#roadmap'),
-      $lesson = el('#lesson'),
-      $quiz = el('#quiz'),
-      $settings = el('#settings'),
-      $apiKey = el('#apiKey'),
-      $useKatex = el('#useKatex');
+      $lesson  = el('#lesson'),
+      $quiz    = el('#quiz'),
+      $settings= el('#settings'),
+      $apiKey  = el('#apiKey'),
+      $useKatex= el('#useKatex');
 
 // === KaTeX再描画 ======================================
 function renderMath(){
@@ -214,7 +214,7 @@ async function askOpenAI(userContent){
       { role: "system", content: "教師。ヒント1行＋確認質問1行のみ。" },
       { role: "user", content: userContent }
     ],
-    temperature: 0.2,
+    temperature: 0.2
   };
   const r = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -246,37 +246,140 @@ async function aiGradeCheck(question, userAnswer, correctAnswer){
   }
 }
 
-// === AI講義モード（★この関数を置換） ==================
+// ========== 追加: 次ユニットIDを返すユーティリティ ==========
+function getNextUnitId(currentId){
+  if(!course) return null;
+  const ids = course.stage1.units.map(x=>x.id);
+  const idx = ids.indexOf(currentId);
+  if(idx < 0 || idx+1 >= ids.length) return null;
+  return ids[idx+1];
+}
+
+// ========== 追加: レッスンにクイズを“同じページに”描画 ==========
+async function renderQuizInline(uId, targetEl){
+  // 既存を初期化
+  targetEl.innerHTML = '';
+
+  const res = await fetch(`quizzes/${uId}.json`);
+  const {questions} = await res.json();
+
+  // ユニークな名前（複数ユニットを同ページで重ねるため）
+  const ns = `u${uId}`;
+
+  const body = questions.map((q,i)=> q.type==='mc'
+    ? `<article class="card"><div>${i+1}. ${q.prompt}</div>
+         ${q.choices.map((c,j)=>`<label><input type="radio" name="q${i}-${ns}" value="${j}"> ${c}</label>`).join('<br>')}
+       </article>`
+    : `<article class="card"><div>${i+1}. ${q.prompt}</div>
+         <input id="q${i}-${ns}" placeholder="解答を入力">
+       </article>`
+  ).join('');
+
+  targetEl.innerHTML = `
+    <h3>小テスト</h3>
+    ${body}
+    <div class="actions">
+      <button id="grade-${ns}">採点</button>
+      <button id="back-${ns}">← レッスンに戻る</button>
+    </div>
+    <pre id="result-${ns}" class="ai"></pre>
+  `;
+
+  renderMath();
+
+  el(`#back-${ns}`).onclick = ()=>{
+    targetEl.innerHTML = '';
+    targetEl.hidden = true;
+  };
+
+  el(`#grade-${ns}`).onclick = async ()=>{
+    const norm = (s)=>(''+s).trim().normalize('NFKC').replace(/\s+/g,'');
+    let score = 0, exp = [];
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      let ok = false;
+
+      if (q.type === 'mc') {
+        const v = [...targetEl.querySelectorAll(`input[name=q${i}-${ns}]`)]
+          .find(x => x.checked)?.value;
+        ok = (Number(v) === q.answer);
+        if (!ok && S.apiKey && S.useAiGrading)
+          ok = await aiGradeCheck(q.prompt, String(v ?? ''), String(q.answer));
+      } else {
+        const v = targetEl.querySelector(`#q${i}-${ns}`)?.value ?? '';
+        const a = q.answer;
+        ok = (v === String(a)) || (norm(v) === norm(a));
+        if (!ok && S.apiKey && S.useAiGrading)
+          ok = await aiGradeCheck(q.prompt, v, a);
+      }
+
+      if (ok) score++;
+      exp.push(`${i+1}. ${ok ? '✅':'❌'} ${q.explanation || ''}`);
+    }
+
+    const resultEl = el(`#result-${ns}`);
+    resultEl.textContent = `得点: ${score}/${questions.length}\n` + exp.join('\n');
+
+    const rate = score / questions.length;
+    const newLv = Math.min(5, Math.max(1, Math.round(rate*5)));
+    S.level = newLv;
+
+    const map = await loadCourse();
+    const threshold = map.stage1.pass_score || 0.7;
+    const passed = rate >= threshold;
+    P.up(uId,{score,total:questions.length,passed,lastView:'lesson',level:newLv});
+
+    if(passed){
+      alert(`🎉 合格！ 理解レベルLv.${newLv} に到達！`);
+      // 次ユニットを同ページに追加
+      const next = getNextUnitId(uId);
+      if(next){
+        const divider = document.createElement('hr');
+        divider.style.margin = '24px 0';
+        targetEl.after(divider);
+        const nextWrap = document.createElement('div');
+        divider.after(nextWrap);
+        loadLessonFor(next, { append: true, mount: nextWrap });
+        // クイズは閉じる
+        targetEl.innerHTML = '';
+        targetEl.hidden = true;
+        // スクロール
+        nextWrap.scrollIntoView({behavior:'smooth', block:'start'});
+      }else{
+        alert('🎓 ステージ1を修了しました！');
+      }
+    }else{
+      alert(`❌ 合格ライン ${Math.round(threshold*100)}% に届きません。やり直してみよう。`);
+    }
+  };
+}
+
+// === AI講義モード ====================================
 async function aiLecture(uId){
   const res = await fetch(`lessons/${uId}.json`);
   const data = await res.json();
-
   const steps = [
-    { key:'theory',      label:'理論' },
-    { key:'practice',    label:'演習' },
+    { key:'theory', label:'理論' },
+    { key:'practice', label:'演習' },
     { key:'application', label:'応用' },
-    { key:'reflection',  label:'考察' }
+    { key:'reflection', label:'考察' }
   ];
-
   const area = el('#aiArea');
-  // 先頭メッセージをHTMLとして挿入
-  area.innerHTML = `<div class="ai-block">📘 AI講義を開始します...</div>`;
+  area.innerHTML = "📘 AI講義を開始します...<br>";
 
   for (const step of steps){
-    // セクション見出し
-    area.innerHTML += `<div class="ai-block">--- ${step.label} ---</div>`;
-
+    area.innerHTML += `<br>--- ${step.label} ---<br>`;
     const content = data[step.key];
     const prompt = `
 あなたはChat GPT高校のAI教師です。
 次の教材をもとに簡潔な講義を行い、最後に1行の確認質問を出してください。
 教材内容:
 ${content}
-`.trim();
-
+`;
     const ans = await askOpenAI(prompt);
 
-    // 改行を <br> に変換し、LaTeXはそのまま描画できるようにエスケープのみ
+    // 改行を <br> に変換し、LaTeX記号を保持してHTML描画
     const safeAns = ans
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
@@ -287,7 +390,7 @@ ${content}
     await sleep(1200);
   }
 
-  // 講義終了メッセージ
+  // ✅ 講義終了メッセージもHTMLとして追記
   area.innerHTML += `<div class="ai-block">✅ 講義終了！「小テストへ →」で確認テストを受けましょう。</div>`;
   renderMath();
 }
@@ -314,51 +417,74 @@ async function openUnit(uId, view='lesson'){
   P.up(uId, {lastView:view});
 }
 
-// === レッスン読込 ====================================
-async function loadLessonFor(uId){
+// === レッスン読込（append対応） =======================
+async function loadLessonFor(uId, opts={}){
+  const { append=false, mount=null } = opts;
   const res = await fetch(`lessons/${uId}.json`);
   const data = await res.json();
-  $lesson.innerHTML = `
+
+  // 挿入先を決定
+  const container = mount || $lesson;
+  if (!append) {
+    container.innerHTML = ''; // 置き換え時はクリア
+  }
+
+  // レッスンブロック（ユニットIDをdata属性で保持）
+  const block = document.createElement('section');
+  block.className = 'unit-block';
+  block.dataset.unitId = uId;
+  block.innerHTML = `
     <h2>${data.title}</h2>
     <article class="card"><h3>理論</h3><div>${data.theory}</div></article>
     <article class="card"><h3>演習</h3><div>${data.practice}</div></article>
     <article class="card"><h3>応用</h3><div>${data.application}</div></article>
     <article class="card"><h3>考察</h3><div>${data.reflection}</div></article>
+
     <div class="actions">
-      <button id="btnHint">ヒント（AI任意）</button>
-      <button id="btnAnswer">答えを見る</button>
-      <button id="btnLecture">AI講義を開始</button>
-      <button id="toQuiz">小テストへ →</button>
-      <button id="toHome">🏠 HOMEに戻る</button>
+      <button class="btn-hint">ヒント（AI任意）</button>
+      <button class="btn-answer">答えを見る</button>
+      <button class="btn-lecture">AI講義を開始</button>
+      <button class="btn-inline-quiz">小テストへ →</button>
+      <button class="btn-home">🏠 HOMEに戻る</button>
     </div>
-    <pre id="aiArea" class="ai"></pre>
+
+    <pre class="ai" id="aiArea"></pre>
+    <div class="inline-quiz" style="margin-top:12px;"></div>
   `;
+
+  container.appendChild(block);
   renderMath();
 
-  el('#btnHint').onclick = async ()=>{
+  const $ai = block.querySelector('#aiArea');
+  block.querySelector('.btn-hint').onclick = async ()=>{
     const prompt = '一次関数の傾きと切片の意味を例と質問つきで短く。';
     const out = await askOpenAI(prompt).catch(()=> '（ローカルヒント）y=mx+b …');
-    // ヒントは簡易なのでテキストでもOK
-    el('#aiArea').textContent = out;
-    renderMath();
+    $ai.textContent = out;
   };
-  el('#btnAnswer').onclick = ()=> {
-    el('#aiArea').textContent =
-      '【模範解答】y=mx+b で m が傾き, b が切片。傾きは x が 1 増えると y がどれだけ増えるか。';
-    renderMath();
-  };
-  el('#btnLecture').onclick = ()=> aiLecture(uId);
-  el('#toQuiz').onclick = ()=> openUnit(uId,'quiz');
 
-  // HOMEに戻る
-  el('#toHome').onclick = ()=>{
+  block.querySelector('.btn-answer').onclick = ()=>{
+    $ai.textContent = '【模範解答】y=mx+b で m が傾き, b が切片。傾きは x が 1 増えると y がどれだけ増えるか。';
+  };
+
+  block.querySelector('.btn-lecture').onclick = ()=> aiLecture(uId);
+
+  // 同ページでクイズを表示
+  block.querySelector('.btn-inline-quiz').onclick = async ()=>{
+    const qwrap = block.querySelector('.inline-quiz');
+    qwrap.hidden = false;
+    await renderQuizInline(uId, qwrap);
+    renderMath();
+  };
+
+  // HOMEへ戻る
+  block.querySelector('.btn-home').onclick = ()=>{
     ['lesson','quiz'].forEach(id=> el('#'+id).hidden = true);
     el('#roadmap').hidden = false;
     window.scrollTo(0,0);
   };
 }
 
-// === クイズ読込 ======================================
+// === 既存の「別ページ表示」用クイズ（残置） ===========
 async function loadQuizFor(uId){
   const res = await fetch(`quizzes/${uId}.json`);
   const {questions} = await res.json();
@@ -376,7 +502,6 @@ async function loadQuizFor(uId){
       <button id="backLesson">← レッスンに戻る</button>
       <button id="nextUnit" hidden>次の単元へ →</button>
     </div>`;
-  // 数式をレンダリング
   renderMath();
 
   el('#grade').onclick = async ()=>{
@@ -409,7 +534,7 @@ async function loadQuizFor(uId){
     const map = await loadCourse();
     const threshold = map.stage1.pass_score || 0.7;
     const passed = rate >= threshold;
-    P.up(uId,{score,total:questions.length,passed,lastView:'quiz',level:newLv});
+    P.up(uId,{score,total:questions.length,passed:lastView:'quiz',level:newLv});
 
     if(passed){
       el('#nextUnit').hidden=false;
